@@ -1,89 +1,214 @@
 # Azure Deployment Plan
 
-**Status:** Approved
-**Prepared:** 2026-07-28
-**Recipe:** AZCLI / Azure App Service zip deployment
+> **Status:** Deployed
 
-## 1. Workload
+Generated: 2026-09-29T22:20:47-07:00
 
-Deploy the existing Number Origin Desk Node.js/Express web application from `web/` behind tenant-only Microsoft Entra authentication and an App Service private endpoint. The Android application and APK remain repository artifacts and are not hosted as an Azure compute workload.
+---
 
-## 2. Architecture
+## 1. Project Overview
 
-- Azure Resource Group: new or existing deployment boundary.
-- Linux Azure App Service Plan: B1 by default; paid, single-region.
-- Azure App Service: Node.js 24 LTS, HTTPS only, TLS 1.2 minimum, HTTP/2 enabled, FTPS disabled.
-- App Service Authentication V2: single-tenant Entra application, authentication required, unauthenticated users redirected to Entra login.
-- Azure VNet: dedicated private-endpoint subnet with private endpoint network policies disabled.
-- App Service private endpoint: `sites` group, approved in the deployment.
-- Private DNS: `privatelink.azurewebsites.net` linked to the VNet and associated with the private endpoint.
-- Public network access: enabled only for zip deployment, then disabled by the deployment script.
-- Deployment: local zip package generated from `web/package.json`, `web/package-lock.json`, `web/src/`, and `web/public/`.
-- No database, map provider, storage account, or embedded source-control credentials.
+**Goal:** Publish the existing Number Origin Desk Node.js/Express application as an anonymously accessible public website while preserving the existing Windows/browser and Android applications, including all map and travel-distance changes.
 
-## 3. Security And Privacy
+**Path:** Add Components
 
-- Use the caller's current Azure CLI identity; do not store credentials.
-- Generate an Entra app credential for App Service Authentication, place it only in an ignored temporary parameter file, and remove it in `finally`.
-- Restrict identity access to the selected tenant and network access to clients connected through VPN, ExpressRoute, peering, or the VNet.
-- Submitted phone numbers are processed in memory and are not persisted by the server.
-- App Service and proxy logs may contain request URLs; production operators must set suitable retention and access controls.
-- Results are numbering-plan metadata, never live location or authoritative carrier traceback.
+**Change boundary:** Deployment configuration and documentation only. The existing `web/` and `android/` application behavior remains intact.
 
-## 4. Deployment Inputs
+---
 
-- Subscription: confirm active Azure CLI subscription before deployment.
-- Region: `westus2` unless the user selects another supported region.
-- Resource group: `rg-number-origin-desk`.
-- App name: choose a globally unique `number-origin-desk-*` name after availability checking.
-- SKU: `B1` (ongoing Azure charges apply).
-- VNet: `vnet-number-origin-desk`, `10.42.0.0/16`; private endpoint subnet `10.42.1.0/24` by default.
-- Entra application: create or reuse the script's single-tenant display name and configure only the App Service callback URL.
+## 2. Requirements
 
-## 5. Preparation Checklist
+| Attribute | Value |
+|-----------|-------|
+| Classification | Production, small public website |
+| Scale | Small |
+| Budget | Cost-Optimized |
+| Subscription | wolffentpSub (`5755893a-8056-4ba8-9916-1133c80a80f3`) |
+| Location | `centralus` |
+| Public access | Anonymous HTTPS access |
+| Existing clients | Preserve Windows/browser and Android applications |
 
-- [x] Web tests pass locally.
-- [x] Android debug APK builds locally.
-- [x] PowerShell deployment scripts parse successfully.
-- [x] ARM template parses successfully.
-- [x] Browser smoke test renders assignment metadata without map or coordinate behavior.
-- [x] Azure deployment script uses HTTPS-only App Service and transient secure credential handling.
-- [x] Deployment is approved by the user instruction to complete all listed items.
+The user was unavailable for an interactive Azure-context confirmation. The active Azure CLI subscription was selected for unattended progress. The configured `eastus2` default had zero B1 quota and its minimum quota-increase request failed, so the website was moved to `centralus`, which has sufficient B1 capacity.
 
-## 6. Validation Steps
+---
 
-- [ ] Confirm Azure authentication, subscription, and target location.
-- [ ] Confirm provider/resource availability and app-name availability.
-- [ ] Run `npm ci` and `npm test` in `web/`.
-- [ ] Parse `infra/deploy-azure.ps1` and `infra/azuredeploy.json`.
-- [ ] Validate ARM template with Azure Resource Manager where applicable.
-- [ ] Run resource-group deployment `what-if` and inspect all planned changes.
-- [ ] Confirm private endpoint, private DNS zone/link, and Auth V2 configuration are accepted in the target region.
-- [ ] Confirm zip package contains application files at archive root.
-- [ ] Record command results and timestamp below.
+## 3. Components Detected
+
+| Component | Type | Technology | Path |
+|-----------|------|------------|------|
+| Number Origin Desk website and API | Frontend + API | Node.js 20+, Express 5, static HTML/CSS/JavaScript | `web/` |
+| Number Origin Desk Android app | Mobile client | Kotlin, Jetpack Compose | `android/` |
+
+Only the website and API will be deployed. Android remains a separately built application.
+
+---
+
+## 4. Recipe Selection
+
+**Selected:** AZD with Bicep
+
+**Rationale:**
+
+- Azure-only deployment with no existing active infrastructure.
+- A single source-deployed Node.js service maps directly to Linux App Service.
+- AZD provides repeatable environment configuration and deployment.
+- Bicep keeps the resource definition explicit and reviewable.
+
+---
+
+## 5. Architecture
+
+**Stack:** Public Linux App Service
+
+### Service Mapping
+
+| Component | Azure Service | SKU |
+|-----------|---------------|-----|
+| Node.js website and API | Azure App Service for Linux | B1 |
+| Hosting compute | Azure App Service Plan for Linux | B1, one instance |
+
+### Supporting Services
+
+| Service | Purpose |
+|---------|---------|
+| Log Analytics workspace | Centralized platform and application telemetry |
+| Application Insights | Availability and application monitoring |
+| User-assigned managed identity | Credential-free Azure identity for future service integrations |
+
+### Public Access and Runtime
+
+- Public network access enabled for the website.
+- App Service Authentication disabled so visitors can use the site anonymously.
+- HTTPS-only with minimum TLS 1.2 and FTP disabled.
+- Node.js 22 LTS Linux runtime.
+- `/health` configured as the App Service health-check endpoint.
+- `SCM_DO_BUILD_DURING_DEPLOYMENT=true` for dependency installation.
+- Existing Express rate limiting and Helmet middleware remain enabled.
+- No phone-number data store, database, private endpoint, or application secret is introduced.
+
+---
+
+## 6. Provisioning Limit Checklist
+
+### Resource Inventory and Capacity
+
+| Resource Type | Number to Deploy | Current in `centralus` | Total After Deployment | Limit/Quota | Notes |
+|---------------|------------------|----------------------|------------------------|-------------|-------|
+| `Microsoft.Web/serverfarms` (B1) | 1 | 0 | 1 | 10 | Azure quota CLI reports 10 available B1 instances |
+| `Microsoft.Web/sites` | 1 | 0 | 1 | 100 apps per App Service plan | Official App Service limits; far below limit |
+| `Microsoft.OperationalInsights/workspaces` | 1 | 0 | 1 | 1,000 per subscription per region | Official Azure Monitor service limit |
+| `Microsoft.Insights/components` | 1 | 0 | 1 | 100 Application Insights resources per resource group | Official Azure Monitor service limit |
+
+**Quota command:** `check-quota.ps1 -SubscriptionId 5755893a-8056-4ba8-9916-1133c80a80f3 -ResourceProvider Microsoft.Web -Region centralus -ResourceName B1`
+
+**Current-resource query:** Azure Resource Graph found zero matching App Service plans, sites, Log Analytics workspaces, or Application Insights components in the originally selected region. B1 quota usage in `centralus` is zero.
+
+**Permissions:** The active identity has Owner and User Access Administrator at the selected subscription.
+
+**Status:** All planned resources are within limits.
+
+---
+
+## 8. Execution Checklist
+
+### Phase 1: Planning
+
+- [x] Analyze workspace
+- [x] Gather requirements
+- [x] Select active subscription and configured location
+- [x] Prepare resource inventory
+- [x] Fetch quotas and validate capacity
+- [x] Scan codebase
+- [x] Select recipe
+- [x] Plan architecture
+- [x] User approved this plan through the explicit instruction to add the public website; unattended approval fallback selected the recommended plan
+
+### Phase 2: Execution
+
+- [x] Generate `azure.yaml`
+- [x] Generate App Service Bicep infrastructure
+- [x] Configure public anonymous HTTPS access
+- [x] Preserve existing web/Windows and Android application code
+- [x] Update public deployment documentation
+- [x] Run web tests and local functional verification
+- [x] Set plan status to `Ready for Validation`
+- [x] Invoke `azure-validate`
+- [x] All validation checks pass
+  - [x] 1. AZD Installation
+  - [x] 2. Schema Validation
+  - [x] 3. Environment Setup
+  - [x] 4. Authentication Check
+  - [x] 5. Subscription/Location Check
+  - [x] 6. Aspire Pre-Provisioning Checks (not applicable)
+  - [x] 7. Provision Preview
+  - [x] 8. Build Verification
+  - [x] 9. Docker Build Context Validation (not applicable)
+  - [x] 10. Package Validation
+  - [x] 11. Azure Policy Validation
+  - [x] 12. Aspire Post-Provisioning Checks (not applicable)
+- [x] Deploy with `azure-deploy`
+- [x] Verify the public HTTPS website and `/health`
+
+---
 
 ## 7. Validation Proof
 
-- Local validation: `npm ci`, `npm test` (3/3 passing), Android `:app:assembleDebug`, PowerShell parsing, and ARM JSON parsing all pass.
-- Android release: `releases/NumberOriginDesk.apk`, SHA-256 `1D3379E3F7C1CA40519804405384D4E9C7712D470E3E3A5E3EF50B99BA47AABC`; installed package was verified on device `R3CT60BCL0E` with no ADB reverse mapping.
-- GitHub: private repository `https://github.com/jerrywolff_microsoft/PhoneTraceback`, branch `main`, initial commit `40a95dc523727401c5aa978907a9f3898585b594`.
-- GitHub release: `https://github.com/jerrywolff_microsoft/PhoneTraceback/releases/tag/v1.0.0` with `NumberOriginDesk.apk` (10,011,779 bytes).
-- GitHub Actions workflow is valid but hosted runners are disabled by GitHub Enterprise policy. Both jobs were rejected before executing steps; an enterprise administrator must enable hosted runners or provide self-hosted runners.
-- Azure CLI context: subscription `wpisub` (`9ea136a4-ccfd-45c2-a8e5-01a38c0563d3`), tenant `7fcb095b-344f-4c1e-8e12-bc781eb03e72`.
-- Azure Resource Manager validation and what-if remain pending a Conditional Access `p1` claims-challenge MFA token for write operations.
+Preparation checks completed on 2026-09-29 (Pacific time):
 
-## 8. Deployment And Verification
+| Check | Command or tool | Result |
+|-------|-----------------|--------|
+| AZD schema | Azure MCP `validate_azure_yaml` | Passed |
+| Bicep compilation | `az bicep build --file infra\main.bicep --stdout` | Passed |
+| Azure deployment preflight | `az deployment sub validate` in `centralus` | Passed; provisioning state `Succeeded` |
+| B1 quota | Azure quota CLI for `centralus` | Limit 10, usage 0, available 10 |
+| Existing regional resources | Azure Resource Graph | No matching resources |
+| Web tests | `npm test` in `web/` | 5 passed, 0 failed |
+| Local health | `GET http://localhost:3000/health` | `{"status":"ok"}` |
+| Local lookup and map data | Lookup for `+1 202 555 0123` | United States; map query present; live-location flag false |
+| Diff formatting | `git diff --check` | Passed |
+| AZD installation | `azd version` | 1.31.1 |
+| AZD authentication | `azd auth login --check-status` | Logged in as `geraldwolff@wolffentp.org` |
+| AZD environment | `azd env get-values` | `production`, `centralus`, selected subscription |
+| Provision preview | `azd provision --preview --no-prompt` | Passed; five primary resources planned |
+| Package | `azd package --no-prompt` | Passed |
+| Azure Policy | Azure MCP attempted, then authenticated Azure CLI fallback | Assignments reviewed; Azure deployment preflight reports no policy conflict |
 
-1. Execute `infra/deploy-azure.ps1` using the confirmed context.
-2. From a VNet-connected client, verify the app hostname resolves to the private endpoint address.
-3. Verify an unauthenticated request redirects to the configured tenant's Entra login.
-4. Authenticate with a tenant account and verify `/health`, the browser UI, and a sample lookup.
-5. Confirm public network access is disabled and the site is unreachable from a general internet client.
-6. Record the private HTTPS URL and validation evidence below. No destructive cleanup is performed automatically.
+### Role Assignment Verification
 
-## 9. Client Network Prerequisites
+- **Status:** Verified
+- **Identity checked:** App Service user-assigned managed identity
+- **Roles confirmed:** None required
+- **Reason:** The application has no Azure data-plane dependencies and does not access Storage, Key Vault, databases, messaging, or other protected Azure services. Assigning a role would grant unnecessary privilege.
+- **Issues:** None
 
-- Connect through point-to-site/site-to-site VPN, ExpressRoute, a peered VNet, or a VNet-hosted client.
-- Link the private DNS zone to every VNet whose clients need access, or configure DNS forwarding.
-- On-premises and VPN DNS should conditionally forward `privatelink.azurewebsites.net` to Azure DNS Private Resolver or a VNet DNS forwarder.
-- Use `https://<app>.azurewebsites.net`; TLS and Entra callback handling rely on the public hostname resolving privately.
+### Deployment Verification
+
+- **Provisioning:** `azd provision --no-prompt` succeeded.
+- **Application deployment:** `azd deploy --no-prompt` succeeded.
+- **Public endpoint:** `https://azappsqwdnoyt7gcd61.azurewebsites.net/`
+- **Health:** `GET /health` returned HTTP 200 with `{"status":"ok"}` after App Service startup completed.
+- **Lookup:** `GET /api/lookup` returned HTTP 200 with the expected assignment and map query.
+- **Browser:** Public lookup rendered Google Maps, Bing Maps, point A, point B, provider, and travel-mode controls.
+- **Public access:** App Service Authentication reports `enabled: false`, `requireAuthentication: false`, and `AllowAnonymous`.
+- **Transport:** HTTPS-only is enabled and public network access is enabled.
+- **Diagnostics:** HTTP logs, console logs, and all metrics are connected to Log Analytics.
+- **Public-source update (2026-09-30):** Redeployed country-aware official allocation, exact-number web search, and clearly labeled community reputation defaults. Public API and browser UI verification passed.
+
+### Live Role Verification
+
+- **Identity:** `azidsqwdnoyt7gcd61` (`a201d834-939a-4520-8f38-c33cfc6857e9`)
+- **Command:** `az role assignment list --assignee-object-id a201d834-939a-4520-8f38-c33cfc6857e9`
+- **Result:** No role assignments, matching the validated least-privilege requirement because the app has no Azure data-plane dependencies.
+- **Status:** Passed
+
+---
+
+## 9. Expected Outputs
+
+| Artifact | Path |
+|----------|------|
+| AZD project configuration | `azure.yaml` |
+| Subscription-scoped orchestration | `infra/main.bicep` |
+| App Service resources | `infra/modules/resources.bicep` |
+| Environment parameters | `infra/main.parameters.json` |
+| Public deployment instructions | `README.md` |

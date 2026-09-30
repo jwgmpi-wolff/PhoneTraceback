@@ -60,6 +60,8 @@ import org.jsoup.Jsoup
 import org.json.JSONObject
 import org.json.JSONArray
 import java.io.File
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -72,7 +74,13 @@ private val Accent = Color(0xFF146C4F)
 private val Muted = Color(0xFF68736D)
 private val Warning = Color(0xFFFFF5D9)
 
-data class SearchLink(val title: String, val url: String, val inAppScamLookup: Boolean = false)
+data class SearchLink(
+    val title: String,
+    val url: String,
+    val category: String,
+    val summary: String,
+    val inAppScamLookup: Boolean = false,
+)
 data class Investigation(
     val status: String,
     val summary: String,
@@ -118,8 +126,184 @@ data class LookupResult(
     val numberType: String,
     val disclaimer: String,
     val areaCode: String?,
+    val mapQuery: String?,
     val investigation: Investigation,
 )
+
+internal enum class MapProvider { GOOGLE, BING }
+internal enum class TravelMode { DRIVING, WALKING, TRANSIT }
+
+internal object PublicMapLinks {
+    private fun encode(value: String, label: String): String {
+        val normalized = value.trim()
+        require(normalized.isNotEmpty()) { "$label is required." }
+        return URLEncoder.encode(normalized, StandardCharsets.UTF_8).replace("+", "%20")
+    }
+
+    private fun encodeUrlValue(value: String): String =
+        URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20")
+
+    internal fun publicInvestigationLinks(
+        canonicalNumber: String,
+        countryCode: String,
+        nationalNumber: String,
+    ): List<SearchLink> {
+        val digits = canonicalNumber.filter(Char::isDigit)
+        val areaCode = nationalNumber.take(3).takeIf { canonicalNumber.startsWith("+1") && nationalNumber.length == 10 }
+        val links = mutableListOf(
+            SearchLink(
+                "ITU E.164 assigned country codes",
+                "https://www.itu.int/pub/T-SP-E.164D",
+                "official",
+                "Authoritative country-calling-code assignment; not a live location or subscriber record.",
+            ),
+        )
+
+        if (areaCode != null) {
+            val exchange = nationalNumber.substring(3, 6)
+            links += SearchLink(
+                "NANPA area-code search",
+                "https://secure.nanpa.com/public-report/npa/search-area-codes",
+                "official",
+                "Official North American area-code assignment and status data.",
+            )
+            links += if (countryCode == "CA") {
+                SearchLink(
+                    "Canadian NPA $areaCode prefix assignments",
+                    "https://cnac.ca/data/COCodeStatus_NPA$areaCode.htm",
+                    "official",
+                    "Canadian block assignee and rate-center data; portability may change the current carrier.",
+                )
+            } else {
+                SearchLink(
+                    "NANPA NPA-NXX assignment reports",
+                    "https://www.nanpa.com/reports/co-code-reports/cocodes_assign",
+                    "official",
+                    "Original prefix assignee and rate-center data; portability may change the current carrier.",
+                )
+            }
+            links += SearchLink(
+                "Local Calling Guide $areaCode-$exchange prefix lookup",
+                "https://localcallingguide.com/lca_prefix.php?npa=$areaCode&nxx=$exchange",
+                "web",
+                "Public NPA-NXX rate-center and original assignee data; not a subscriber or live-device location.",
+            )
+        } else {
+            val nationalAuthority = when (countryCode) {
+                "GB" -> SearchLink(
+                    "Ofcom numbering allocation data",
+                    "https://www.ofcom.org.uk/phones-and-broadband/phone-numbers/numbering-data",
+                    "official",
+                    "UK regulator datasets showing number-range allocations.",
+                )
+                "AU" -> SearchLink(
+                    "Australian Numbering System",
+                    "https://www.thenumberingsystem.com.au/",
+                    "official",
+                    "Public Australian number-allocation register.",
+                )
+                "NZ" -> SearchLink(
+                    "New Zealand number register",
+                    "https://www.nad.org.nz/number-register",
+                    "official",
+                    "Public New Zealand number-allocation register.",
+                )
+                else -> null
+            }
+            if (nationalAuthority != null) links += nationalAuthority
+        }
+
+        links += SearchLink(
+            "DuckDuckGo exact-number search",
+            "https://duckduckgo.com/?q=${encodeUrlValue("\"$canonicalNumber\" phone")}",
+            "web",
+            "Finds public pages and discussions. Search results are not verified evidence.",
+        )
+        links += SearchLink(
+            "Should I Answer? community reports",
+            "https://www.shouldianswer.com/phone-number/$digits",
+            "community",
+            "User-contributed reports may be stale, mistaken, or affected by spoofing.",
+        )
+        links += SearchLink(
+            "Tellows community reports",
+            "https://www.tellows.com/num/${encodeUrlValue(canonicalNumber)}",
+            "community",
+            "International user reports; this app does not query or copy their content.",
+        )
+
+        if (areaCode != null) {
+            val formattedNanp = "1-$areaCode-${nationalNumber.substring(3, 6)}-${nationalNumber.substring(6)}"
+            links += SearchLink(
+                "800notes community reports",
+                "https://800notes.com/Phone.aspx/$formattedNanp",
+                "community",
+                "North American user discussions that do not establish caller identity.",
+            )
+            if (countryCode == "US") {
+                links += SearchLink(
+                    "YouMail public directory",
+                    "https://directory.youmail.com/phone/${formattedNanp.removePrefix("1-")}",
+                    "community",
+                    "US caller and spam reputation data; ownership and caller ID can change or be spoofed.",
+                )
+            }
+            links += SearchLink(
+                "ReportedCalls public report",
+                "https://www.reportedcalls.com/$nationalNumber",
+                "community",
+                "Public assignment and complaint summary; reports are leads, not proof.",
+                inAppScamLookup = true,
+            )
+        }
+
+        if (countryCode == "US") {
+            links += SearchLink(
+                "File an FCC complaint",
+                "https://consumercomplaints.fcc.gov/hc/en-us",
+                "reporting",
+                "Official US communications complaint portal.",
+            )
+            links += SearchLink(
+                "Report fraud to the FTC",
+                "https://reportfraud.ftc.gov/",
+                "reporting",
+                "Official US fraud reporting portal.",
+            )
+        }
+        return links
+    }
+
+    fun search(provider: MapProvider, location: String): String {
+        val query = encode(location, "Location")
+        return when (provider) {
+            MapProvider.GOOGLE -> "https://www.google.com/maps/search/?api=1&query=$query"
+            MapProvider.BING -> "https://www.bing.com/maps?q=$query"
+        }
+    }
+
+    fun directions(
+        provider: MapProvider,
+        origin: String,
+        destination: String,
+        travelMode: TravelMode,
+    ): String {
+        val pointA = encode(origin, "Point A")
+        val pointB = encode(destination, "Point B")
+        return when (provider) {
+            MapProvider.GOOGLE ->
+                "https://www.google.com/maps/dir/?api=1&origin=$pointA&destination=$pointB&travelmode=${travelMode.name.lowercase()}"
+            MapProvider.BING -> {
+                val mode = when (travelMode) {
+                    TravelMode.DRIVING -> "D"
+                    TravelMode.WALKING -> "W"
+                    TravelMode.TRANSIT -> "T"
+                }
+                "https://www.bing.com/maps?rtp=adr.$pointA~adr.$pointB&mode=$mode"
+            }
+        }
+    }
+}
 
 data class ScamLookupResult(
     val country: String,
@@ -209,7 +393,9 @@ class MainActivity : ComponentActivity() {
             ?.takeIf { it.isNotBlank() }
             ?: countryCode.ifBlank { "Non-geographic numbering plan" }
         val areaCode = if (phone.countryCode == 1) phone.nationalNumber.toString().take(3) else null
-        val encodedQuery = Uri.encode("\"$canonicalNumber\" spam scam")
+        val mapQuery = countryCode.takeIf { it.length == 2 }?.let {
+            if (areaCode == null) region else "$areaCode area code, $region"
+        }
 
         return LookupResult(
             canonicalNumber = canonicalNumber,
@@ -220,6 +406,7 @@ class MainActivity : ComponentActivity() {
             numberType = phoneNumberUtil.getNumberType(phone).name,
             disclaimer = "Numbering-plan assignment only. Not a live caller, device, or network location. Caller ID may be spoofed.",
             areaCode = areaCode,
+            mapQuery = mapQuery,
             investigation = Investigation(
                 status = "unverified",
                 summary = "Number validity and numbering assignment do not verify the identity or network origin of the caller.",
@@ -228,12 +415,10 @@ class MainActivity : ComponentActivity() {
                     "Only the originating and terminating providers can perform an authoritative call traceback.",
                     "STIR/SHAKEN attestation, when exposed by a provider, is stronger evidence than caller ID but is not proof of identity.",
                 ),
-                publicSearches = listOf(
-                    SearchLink("Live Google abuse-report search", "https://www.google.com/search?q=$encodedQuery"),
-                    SearchLink("Live Bing abuse-report search", "https://www.bing.com/search?q=$encodedQuery", inAppScamLookup = true),
-                    SearchLink("Current NANPA area-code reports", "https://www.nanpa.com/reports/reports-npa"),
-                    SearchLink("File an FCC complaint", "https://consumercomplaints.fcc.gov/hc/en-us"),
-                    SearchLink("Report fraud to the FTC", "https://reportfraud.ftc.gov/"),
+                publicSearches = PublicMapLinks.publicInvestigationLinks(
+                    canonicalNumber,
+                    countryCode,
+                    phone.nationalNumber.toString(),
                 ),
             ),
         )
@@ -527,6 +712,11 @@ private fun ResultPanel(
     var publicLinkMessage by remember(result.canonicalNumber) { mutableStateOf<String?>(null) }
     var scamLookupState: ScamLookupState by remember(result.canonicalNumber) { mutableStateOf(ScamLookupState.Idle) }
     var pendingScamNumber by remember(result.canonicalNumber) { mutableStateOf<String?>(null) }
+    var routeOrigin by remember(result.canonicalNumber) { mutableStateOf(result.mapQuery.orEmpty()) }
+    var routeDestination by remember(result.canonicalNumber) { mutableStateOf("") }
+    var mapProvider by remember(result.canonicalNumber) { mutableStateOf(MapProvider.GOOGLE) }
+    var travelMode by remember(result.canonicalNumber) { mutableStateOf(TravelMode.DRIVING) }
+    var mapMessage by remember(result.canonicalNumber) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -550,6 +740,104 @@ private fun ResultPanel(
             fontSize = 13.sp,
             lineHeight = 19.sp,
         )
+        result.mapQuery?.let { assignmentLocation ->
+            Spacer(Modifier.height(24.dp))
+            Text("ASSIGNMENT MAP AND TRAVEL DISTANCE", color = Accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "$assignmentLocation is the numbering assignment area, not the caller's current or verified origin.",
+                color = Muted,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    mapMessage = if (openUrl(PublicMapLinks.search(MapProvider.GOOGLE, assignmentLocation))) {
+                        null
+                    } else {
+                        "No browser or map application could open Google Maps."
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(4.dp),
+            ) {
+                Text("Open assignment in Google Maps")
+            }
+            OutlinedButton(
+                onClick = {
+                    mapMessage = if (openUrl(PublicMapLinks.search(MapProvider.BING, assignmentLocation))) {
+                        null
+                    } else {
+                        "No browser or map application could open Bing Maps."
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(4.dp),
+            ) {
+                Text("Open assignment in Bing Maps")
+            }
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = routeOrigin,
+                onValueChange = { routeOrigin = it.take(200) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Point A") },
+                singleLine = true,
+            )
+            OutlinedTextField(
+                value = routeDestination,
+                onValueChange = { routeDestination = it.take(200) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Point B") },
+                placeholder = { Text("Enter an address or place") },
+                singleLine = true,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text("Map service", color = Muted, fontSize = 12.sp)
+            OutlinedButton(
+                onClick = { mapProvider = MapProvider.GOOGLE },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(4.dp),
+            ) {
+                Text(if (mapProvider == MapProvider.GOOGLE) "Google Maps (selected)" else "Google Maps")
+            }
+            OutlinedButton(
+                onClick = { mapProvider = MapProvider.BING },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(4.dp),
+            ) {
+                Text(if (mapProvider == MapProvider.BING) "Bing Maps (selected)" else "Bing Maps")
+            }
+            Text("Travel mode", color = Muted, fontSize = 12.sp)
+            TravelMode.entries.forEach { mode ->
+                OutlinedButton(
+                    onClick = { travelMode = mode },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(4.dp),
+                ) {
+                    val label = mode.name.lowercase().replaceFirstChar { it.uppercase() }
+                    Text(if (travelMode == mode) "$label (selected)" else label)
+                }
+            }
+            Button(
+                onClick = {
+                    mapMessage = runCatching {
+                        val url = PublicMapLinks.directions(mapProvider, routeOrigin, routeDestination, travelMode)
+                        if (!openUrl(url)) error("No browser or map application could open the route.")
+                        null
+                    }.getOrElse { it.message ?: "The route could not be opened." }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(4.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Accent),
+            ) {
+                Text("Open route and distance")
+            }
+            mapMessage?.let {
+                Text(it, modifier = Modifier.padding(top = 6.dp), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+            }
+        }
         Spacer(Modifier.height(24.dp))
         Text("CALLER AUTHENTICITY", color = Accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
         Spacer(Modifier.height(6.dp))
@@ -561,10 +849,17 @@ private fun ResultPanel(
         }
         if (result.investigation.publicSearches.isNotEmpty()) {
             Spacer(Modifier.height(18.dp))
-            Text("LIVE PUBLIC CHECKS", color = Accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-            Text("Opens current external results. Reports are leads, not proof of caller identity or location.", modifier = Modifier.padding(top = 6.dp), color = Muted, fontSize = 13.sp)
+            Text("PUBLIC ORIGIN AND REPUTATION SOURCES", color = Accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+            Text(
+                "Official records show assignments. Web and community results are unverified leads and may be affected by portability or spoofing.",
+                modifier = Modifier.padding(top = 6.dp),
+                color = Muted,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+            )
             result.investigation.publicSearches.forEach { search ->
                 Spacer(Modifier.height(8.dp))
+                Text(search.category.uppercase(), color = Accent, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
                 OutlinedButton(
                     onClick = {
                         if (search.inAppScamLookup) {
@@ -596,6 +891,7 @@ private fun ResultPanel(
                         Text(search.title)
                     }
                 }
+                Text(search.summary, color = Muted, fontSize = 12.sp, lineHeight = 17.sp)
             }
             when (val scamState = scamLookupState) {
                 is ScamLookupState.Success -> {

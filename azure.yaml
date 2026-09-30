@@ -1,0 +1,12 @@
+name: number-origin-desk
+metadata:
+  template: azd-init
+
+infra:
+  path: ./infra
+
+services:
+  web:
+    project: ./web
+    language: js
+    host: appservice

@@ -10,9 +10,11 @@ The application intentionally does not perform real-time tracking, subscriber de
 
 For North American Numbering Plan numbers, the app can display the three-digit area code as assignment metadata. Area codes can be ported, reassigned, used remotely, or spoofed and must not be interpreted as the call's physical origin.
 
+After a successful lookup, the web and Android apps can open the assigned country or NANP area-code query in Google Maps or Bing Maps. This is a public-map search for the numbering assignment, not a pin for the caller or device. A route builder also accepts point A, point B, a map provider, and a travel mode; the selected public map service opens the route and displays its current travel distance. No map API key or location data is stored by this application.
+
 The server does not persist submitted phone numbers. Production operators should still treat application and proxy logs as potentially sensitive and configure retention accordingly.
 
-The Android app operates independently of the web application, Azure, and USB. Number parsing, assignment inspection, call-history matching, saving, and export all happen on the device. The optional Scam Phone report check sends the selected ten-digit NANP number to ReportedCalls.com only after the user selects **Live Bing abuse-report search**. The number is held in transient action state and cleared when that request finishes. A successful result is written to app-private storage only if the user subsequently selects **Save investigation and scam report**. It can optionally inspect matching entries in the device call history after an explicit runtime permission prompt. Call-log access is restricted by Google Play policy, so public distribution may require removing this feature or qualifying for an allowed use.
+The Android app operates independently of the web application, Azure, and USB. Number parsing, assignment inspection, call-history matching, saving, and export all happen on the device. The optional Scam Phone report check sends the selected ten-digit NANP number to ReportedCalls.com only after the user selects **ReportedCalls public report**. The number is held in transient action state and cleared when that request finishes. A successful result is written to app-private storage only if the user subsequently selects **Save investigation and scam report**. It can optionally inspect matching entries in the device call history after an explicit runtime permission prompt. Call-log access is restricted by Google Play policy, so public distribution may require removing this feature or qualifying for an allowed use.
 
 Investigations are saved only when the user selects the save action. Reports use structured JSON in app-private storage with Android backup disabled. Saved Scam Phone data includes the public summary, assignment, source URL, and retrieval time. The saved-investigations section exports a readable PDF through Android's document picker for later analysis or submission to a provider or regulator. Exports contain phone numbers and call metadata and should be handled as sensitive data.
 
@@ -21,17 +23,78 @@ Investigations are saved only when the user selects the save action. Reports use
 - `web/`: Node.js/Express API and browser client.
 - `android/`: standalone Kotlin/Jetpack Compose Android application.
 - `infra/`: private Azure App Service infrastructure and deployment automation.
-- `releases/NumberOriginDesk.apk`: installable APK for authorized testing.
-- `docs/screenshots/`: privacy-safe browser screenshot.
+
+## Install
+
+The simplest option on every platform is the public HTTPS application:
+
+<https://azappsqwdnoyt7gcd61.azurewebsites.net/>
+
+It is an installable progressive web app and receives web updates automatically.
+
+### Android
+
+1. Open the public site in Chrome.
+2. Open the Chrome menu and select **Install app** or **Add to Home screen**.
+3. Confirm **Install**.
+
+For the native Android project, install Android Studio with JDK 17 and Android SDK 35, open `android/`, and select **Run**. From a terminal, build a development APK with:
+
+```powershell
+cd android
+.\gradlew.bat assembleDebug
+```
+
+The APK is created at `android/app/build/outputs/apk/debug/NumberOriginDesk.apk`. Transfer it to an Android device, allow installation from the selected file manager, and open the APK to install it.
+
+### Windows
+
+1. Open the public site in Microsoft Edge or Google Chrome.
+2. In Edge, select **Settings and more > Apps > Install Number Origin Desk**. In Chrome, select the install icon in the address bar.
+3. Launch **Number Origin Desk** from the Start menu.
+
+To run a local copy, install Node.js 20 or newer and use:
+
+```powershell
+git clone https://github.com/jwgmpi-wolff/PhoneTraceback.git
+cd PhoneTraceback\web
+npm ci
+npm start
+```
+
+Open <http://localhost:3000>.
+
+### Linux
+
+1. Open the public site in Chrome or Chromium.
+2. Select the install icon in the address bar, or open the browser menu and select **Install Number Origin Desk**.
+3. Launch it from the desktop application menu.
+
+To run a local copy, install Git and Node.js 20 or newer:
+
+```bash
+git clone https://github.com/jwgmpi-wolff/PhoneTraceback.git
+cd PhoneTraceback/web
+npm ci
+npm start
+```
+
+Open <http://localhost:3000>.
 
 ## Data sources
 
 - [libphonenumber-js](https://github.com/catamphetamine/libphonenumber-js) parses and validates international numbers from numbering-plan metadata.
 - [Countries](https://github.com/mledoze/countries), bundled through `world-countries`, supplies versioned country display names without an outbound lookup.
+- [ITU E.164](https://www.itu.int/pub/T-SP-E.164D) is the authoritative international country-calling-code assignment reference.
+- [NANPA](https://secure.nanpa.com/public-report/npa/search-area-codes) and the [Canadian Numbering Administrator](https://cnac.ca/co_codes/co_code_status.htm) provide public North American area-code and prefix-assignment records.
+- [Local Calling Guide](https://localcallingguide.com/) provides direct public NPA-NXX rate-center and original-assignee lookups for North American numbers. These records describe numbering assignments, not a subscriber or device location.
+- Curated national allocation registers are linked for the [United Kingdom](https://www.ofcom.org.uk/phones-and-broadband/phone-numbers/numbering-data), [Australia](https://www.thenumberingsystem.com.au/), and [New Zealand](https://www.nad.org.nz/number-register).
 
 Each API result reports its source URLs and UTC retrieval time. Non-geographic numbering plans return validated metadata without inferred location.
 
-The investigation section provides a live exact-number Google search, an in-app ReportedCalls.com Scam Phone report check triggered by the Bing abuse button, current NANPA reports, and official FCC/FTC reporting links. The Scam Phone result includes the public assignment and complaint summary returned by that third-party site. These results are leads, not proof that reports concern the current caller. They do not provide a live caller location, carrier route, subscriber identity, or STIR/SHAKEN attestation. An authoritative traceback requires the involved voice providers and is generally initiated promptly through a provider, law enforcement, or the appropriate regulator. Preserve the original call time, time zone, displayed number, voicemail, and screenshots when reporting abuse.
+The investigation section defaults to official allocation records, a direct Local Calling Guide NPA-NXX lookup for North American numbers, a quoted-number DuckDuckGo search, and outbound community-report links from Should I Answer?, Tellows, and—where applicable—800notes and YouMail. Android also retains its optional in-app ReportedCalls.com summary. Apart from the documented prefix-only Local Calling Guide retrieval, the application does not proxy, scrape, cache, or represent outbound community content as its own determination. Assignment records generally show the original block assignee rather than the current carrier of a ported number. Community results are allegations and may be stale, mistaken, malicious, or caused by caller-ID spoofing. These results do not provide a live caller location, subscriber identity, or authoritative traceback.
+
+For NANP numbers, the web application retrieves the public Local Calling Guide page using only the six-digit NPA-NXX prefix and displays its rate center, region, and original assignee in the **Evidence boundary**. The full phone number is not sent to that source. The boundary enumerates every configured source, its required form input, the value derived from the inspected number, and its access method: safely retrieved prefix evidence is labeled `discovered`, static allocation and reporting resources are labeled `reference`, and directories that require the complete phone number are labeled `manual review` with prefilled direct search links. The app does not silently transmit a complete phone number to those third parties. Tellows automation requires its licensed API; FCC and FTC destinations are reporting forms rather than number-search sources, and incident facts are never fabricated or predicted. Retrieval failures are shown as unavailable evidence rather than successful findings.
 
 ## Run the web app
 
@@ -58,15 +121,7 @@ The endpoint accepts international-format numbers only, limits requests per IP, 
 
 Open `android/` in Android Studio with JDK 17 and Android SDK 35 installed, then build and install the application. The installed app does not require the web server, Azure deployment, USB connection, ADB tunnel, account, or network access for number inspection and local reporting.
 
-The live Google search, in-app Scam Phone report check, and NANPA/FCC/FTC links require network access after the user selects them. Scam Phone report checks currently support ten-digit North American Numbering Plan numbers. Build a signed release in Android Studio for distribution.
-
-### Download the Android APK
-
-[Download Number Origin Desk for Android](https://github.com/jerrywolff_microsoft/PhoneTraceback/releases/download/v1.0.0/NumberOriginDesk.apk)
-
-This verified APK is for authorized testing. Because the repository is private, GitHub may require an account with repository access before downloading it. On the Android device, open the downloaded APK, allow installation from that browser or file manager when prompted, and select **Install**. No USB connection or web service is required afterward.
-
-SHA-256: `1D3379E3F7C1CA40519804405384D4E9C7712D470E3E3A5E3EF50B99BA47AABC`
+The public source links and in-app Scam Phone report check require network access after the user selects them. Scam Phone report checks currently support ten-digit North American Numbering Plan numbers. Build a signed release in Android Studio for distribution.
 
 ## Validation
 
@@ -74,37 +129,38 @@ The local validation gate runs `npm ci`, all web tests, the Android debug build,
 
 ## Deploy the web app to Azure
 
-Requirements: Azure CLI, an active `az login` session, and permission to create resource groups, App Service, networking, private DNS, Entra applications, and service principals in the selected tenant and subscription.
+The website can be deployed as a publicly accessible, anonymous Azure App Service. This does not alter the Android app or local Windows/browser workflow.
+
+Requirements: Azure CLI, Azure Developer CLI, an active `az login` session, and permission to create resource groups, App Service resources, managed identities, Log Analytics, and Application Insights.
 
 ```powershell
 az login
 az account set --subscription <subscription-id>
 
-cd infra
-.\deploy-azure.ps1 `
-  -ResourceGroup rg-number-origin-desk `
-  -Location westus2 `
-  -AppName <globally-unique-app-name>
+azd auth login
+azd env new production --no-prompt
+azd env set AZURE_SUBSCRIPTION_ID <subscription-id>
+azd env set AZURE_LOCATION centralus
+azd up --no-prompt
 ```
 
-The script creates or reuses a single-tenant Entra application, creates a one-year credential, deploys a Linux App Service with Authentication V2, and provisions a VNet, private endpoint, and linked `privatelink.azurewebsites.net` private DNS zone. It temporarily permits public access for zip deployment, then disables the public endpoint. The generated credential is passed through an ignored temporary parameter file and deleted in a `finally` block; it is never printed or committed.
+The deployment creates a B1 Linux App Service plan, a public HTTPS web app, a user-assigned managed identity, Log Analytics, and Application Insights. App Service Authentication is explicitly disabled so the public can use the site without signing in. The existing Express rate limit, security headers, privacy warnings, map links, and travel-distance workflow remain active.
 
-The App Service URL is not reachable from the general internet after deployment. Users need both:
+After deployment, retrieve the public endpoint:
 
-- An account in the configured Microsoft Entra tenant.
-- Network reachability through point-to-site/site-to-site VPN, ExpressRoute, or a client hosted in or peered with the VNet.
-
-Clients must use DNS that can resolve the App Service name through the linked private zone. For on-premises or VPN clients, configure conditional forwarding for `privatelink.azurewebsites.net` to Azure DNS Private Resolver or an equivalent DNS forwarder in the VNet. The normal URL remains `https://<app-name>.azurewebsites.net`; do not browse directly to the private endpoint IP.
+```powershell
+azd env get-value WEB_URL
+```
 
 The default B1 plan incurs Azure charges. Delete the resource group when it is no longer needed:
 
 ```powershell
-az group delete --name rg-number-origin-desk
+azd down --purge --force
 ```
 
 ## Production notes
 
-- Rotate the Entra application credential before the expiration date printed by the deployment script.
-- Configure Application Insights and an appropriate log-retention policy before production use.
+- Review Application Insights and Log Analytics retention and ingestion costs.
+- Add a custom domain and App Service managed certificate if a branded URL is required.
 - Keep application and platform dependencies patched.
 - Do not market or display results as caller location, ownership, identity, or traceback evidence.

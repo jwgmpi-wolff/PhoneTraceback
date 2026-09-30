@@ -1,5 +1,7 @@
 .DS_Store
 .vscode/
+.azure/*/.env
+.azure/*/config.json
 web/node_modules/
 web/.env
 infra/*.zip
