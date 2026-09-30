@@ -47,6 +47,14 @@ cd android
 
 The APK is created at `android/app/build/outputs/apk/debug/NumberOriginDesk.apk`. Transfer it to an Android device, allow installation from the selected file manager, and open the APK to install it.
 
+#### Download the Android installer
+
+[Download Number Origin Desk 1.0 for Android](https://github.com/jwgmpi-wolff/PhoneTraceback/releases/download/v1.0.0/NumberOriginDesk.apk)
+
+This APK is debug-signed for direct testing rather than Play Store distribution. Android may require permission to install unknown apps for the browser or file manager used to open it.
+
+SHA-256: `C479B1C1405A92D6B1604E4D26C08208C5E0CC3018C290A9BD7655CB2F1C3AA1`
+
 ### Windows
 
 1. Open the public site in Microsoft Edge or Google Chrome.
