@@ -46,7 +46,7 @@ test("returns sourced numbering assignment without inferred coordinates", async 
   });
   assert.match(response.body.investigation.discoveredEvidence.summary, /Washington Zone 1, DC/);
   const searches = response.body.investigation.publicSearches;
-  assert.equal(searches.length, 11);
+  assert.equal(searches.length, 13);
   assert.deepEqual(
     searches.map(({ title, category }) => ({ title, category })),
     [
@@ -55,6 +55,8 @@ test("returns sourced numbering assignment without inferred coordinates", async 
       { title: "NANPA NPA-NXX assignment reports", category: "official" },
       { title: "Local Calling Guide 202-555 prefix lookup", category: "web" },
       { title: "DuckDuckGo exact-number search", category: "web" },
+      { title: "Google possible-owner search", category: "web" },
+      { title: "Bing possible-owner search", category: "web" },
       { title: "Should I Answer? community reports", category: "community" },
       { title: "Tellows community reports", category: "community" },
       { title: "800notes community reports", category: "community" },
@@ -68,9 +70,17 @@ test("returns sourced numbering assignment without inferred coordinates", async 
     "https://localcallingguide.com/lca_prefix.php?npa=202&nxx=555",
   );
   assert.match(searches[4].url, /duckduckgo\.com\/\?q=%22%2B12025550123%22%20phone/);
-  assert.equal(searches[5].url, "https://www.shouldianswer.com/phone-number/12025550123");
-  assert.equal(searches[7].url, "https://800notes.com/Phone.aspx/1-202-555-0123");
-  assert.equal(searches[8].url, "https://directory.youmail.com/phone/202-555-0123");
+  assert.equal(
+    searches[5].url,
+    "https://www.google.com/search?q=%22%2B12025550123%22%20phone%20owner%20business",
+  );
+  assert.equal(
+    searches[6].url,
+    "https://www.bing.com/search?q=%22%2B12025550123%22%20phone%20owner%20business",
+  );
+  assert.equal(searches[7].url, "https://www.shouldianswer.com/phone-number/12025550123");
+  assert.equal(searches[9].url, "https://800notes.com/Phone.aspx/1-202-555-0123");
+  assert.equal(searches[10].url, "https://directory.youmail.com/phone/202-555-0123");
   assert.equal(response.body.sources.length, 2);
   assert.equal(response.body.sources[0].retrievedAtUtc, "2026-07-28T12:00:00.000Z");
   const evidence = response.body.investigation.evidenceResults;
@@ -98,6 +108,10 @@ test("returns sourced numbering assignment without inferred coordinates", async 
   assert.equal(
     evidence.find(({ title }) => title === "DuckDuckGo exact-number search").inputValue,
     "\"+12025550123\" phone",
+  );
+  assert.equal(
+    evidence.find(({ title }) => title === "Google possible-owner search").inputValue,
+    "\"+12025550123\" phone owner business",
   );
   assert.match(
     evidence.find(({ title }) => title === "Tellows community reports").accessMethod,

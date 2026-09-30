@@ -220,6 +220,18 @@ internal object PublicMapLinks {
             "Finds public pages and discussions. Search results are not verified evidence.",
         )
         links += SearchLink(
+            "Google possible-owner search",
+            "https://www.google.com/search?q=${encodeUrlValue("\"$canonicalNumber\" phone owner business")}",
+            "web",
+            "Finds possible public owner or business references; matching text does not verify current ownership.",
+        )
+        links += SearchLink(
+            "Bing possible-owner search",
+            "https://www.bing.com/search?q=${encodeUrlValue("\"$canonicalNumber\" phone owner business")}",
+            "web",
+            "Finds possible public owner or business references; matching text does not verify current ownership.",
+        )
+        links += SearchLink(
             "Should I Answer? community reports",
             "https://www.shouldianswer.com/phone-number/$digits",
             "community",

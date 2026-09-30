@@ -14,6 +14,8 @@ class PublicInvestigationLinksTest {
         assertTrue(links.any { it.url == "https://secure.nanpa.com/public-report/npa/search-area-codes" })
         assertTrue(links.any { it.url == "https://localcallingguide.com/lca_prefix.php?npa=202&nxx=555" })
         assertTrue(links.any { it.url == "https://duckduckgo.com/?q=%22%2B12025550123%22%20phone" })
+        assertTrue(links.any { it.url == "https://www.google.com/search?q=%22%2B12025550123%22%20phone%20owner%20business" })
+        assertTrue(links.any { it.url == "https://www.bing.com/search?q=%22%2B12025550123%22%20phone%20owner%20business" })
         assertTrue(links.any { it.url == "https://www.shouldianswer.com/phone-number/12025550123" })
         assertTrue(links.any { it.url == "https://800notes.com/Phone.aspx/1-202-555-0123" })
         assertTrue(links.any { it.url == "https://directory.youmail.com/phone/202-555-0123" })

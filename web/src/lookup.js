@@ -99,6 +99,16 @@ function createEvidenceResults(searches, prefixEvidence, phone) {
       inputValue: `"${phone.number}" phone`,
       accessMethod: "Prefilled public search link; manual review.",
     },
+    "Google possible-owner search": {
+      requiredInput: "Full E.164 number as a quoted owner/business query",
+      inputValue: `"${phone.number}" phone owner business`,
+      accessMethod: "Prefilled public search link; manual review.",
+    },
+    "Bing possible-owner search": {
+      requiredInput: "Full E.164 number as a quoted owner/business query",
+      inputValue: `"${phone.number}" phone owner business`,
+      accessMethod: "Prefilled public search link; manual review.",
+    },
     "Should I Answer? community reports": {
       requiredInput: "Full digits-only international number",
       inputValue: digits,
@@ -170,7 +180,7 @@ function createEvidenceResults(searches, prefixEvidence, phone) {
       };
     }
 
-    if (search.category === "community" || search.title === "DuckDuckGo exact-number search") {
+    if (search.category === "community" || search.category === "web") {
       return {
         title: search.title,
         category: search.category,
@@ -200,6 +210,7 @@ function createEvidenceResults(searches, prefixEvidence, phone) {
 function createInvestigation(phone) {
   const digits = phone.number.replace(/\D/g, "");
   const exactNumberQuery = encodeURIComponent(`"${phone.number}" phone`);
+  const possibleOwnerQuery = encodeURIComponent(`"${phone.number}" phone owner business`);
   const areaCode = phone.countryCallingCode === "1" ? phone.nationalNumber.slice(0, 3) : null;
   const exchange = areaCode ? phone.nationalNumber.slice(3, 6) : null;
   const nanpNumber = areaCode
@@ -280,6 +291,18 @@ function createInvestigation(phone) {
       `https://duckduckgo.com/?q=${exactNumberQuery}`,
       "web",
       "Finds public business pages, notices, and discussions. Search results are not verified evidence.",
+    ),
+    source(
+      "Google possible-owner search",
+      `https://www.google.com/search?q=${possibleOwnerQuery}`,
+      "web",
+      "Finds possible public owner or business references. Matching text does not verify current ownership.",
+    ),
+    source(
+      "Bing possible-owner search",
+      `https://www.bing.com/search?q=${possibleOwnerQuery}`,
+      "web",
+      "Finds possible public owner or business references. Matching text does not verify current ownership.",
     ),
     source(
       "Should I Answer? community reports",
