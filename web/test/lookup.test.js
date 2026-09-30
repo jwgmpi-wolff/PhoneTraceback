@@ -123,8 +123,24 @@ test("returns sourced numbering assignment without inferred coordinates", async 
     /Azure AI Foundry/,
   );
   assert.match(
+    evidence.find(({ title }) => title === "DuckDuckGo exact-number search").summary,
+    /Instant Answer API/,
+  );
+  assert.match(
+    evidence.find(({ title }) => title === "Should I Answer? community reports").summary,
+    /does not publish a supported result API/,
+  );
+  assert.match(
     evidence.find(({ title }) => title === "Tellows community reports").accessMethod,
     /licensed Tellows API/,
+  );
+  assert.match(
+    evidence.find(({ title }) => title === "800notes community reports").summary,
+    /does not publish a supported result API/,
+  );
+  assert.match(
+    evidence.find(({ title }) => title === "YouMail public directory").summary,
+    /partner access is required/,
   );
   assert.equal(
     evidence.find(({ title }) => title === "ITU E.164 assigned country codes").status,

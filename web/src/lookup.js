@@ -97,7 +97,9 @@ function createEvidenceResults(searches, prefixEvidence, phone) {
     "DuckDuckGo exact-number search": {
       requiredInput: "Full E.164 number as a quoted search query",
       inputValue: `"${phone.number}" phone`,
-      accessMethod: "Prefilled public search link; manual review.",
+      accessMethod: "External prefilled search; DuckDuckGo has no official full-results API.",
+      manualSummary:
+        "DuckDuckGo's Instant Answer API does not return full web results. Review the prefilled search externally.",
     },
     "Google possible-owner search": {
       requiredInput: "Full E.164 number as a quoted owner/business query",
@@ -116,22 +118,30 @@ function createEvidenceResults(searches, prefixEvidence, phone) {
     "Should I Answer? community reports": {
       requiredInput: "Full digits-only international number",
       inputValue: digits,
-      accessMethod: "Prefilled public number page; manual review.",
+      accessMethod: "External prefilled number page; no documented public lookup API.",
+      manualSummary:
+        "Should I Answer? does not publish a supported result API for this use. Review its community page externally.",
     },
     "Tellows community reports": {
       requiredInput: "Full E.164 number",
       inputValue: phone.number,
-      accessMethod: "Prefilled public page; licensed Tellows API required for automation.",
+      accessMethod: "External prefilled page; licensed Tellows API required for automation.",
+      manualSummary:
+        "Automated Tellows reputation results require a licensed Tellows API key. This deployment has no Tellows license.",
     },
     "800notes community reports": {
       requiredInput: "Full NANP number",
       inputValue: formattedNanp,
-      accessMethod: "Prefilled public number page; manual review.",
+      accessMethod: "External prefilled number page; no documented public lookup API.",
+      manualSummary:
+        "800notes does not publish a supported result API. Review the user-powered directory externally; a missing page may mean no record.",
     },
     "YouMail public directory": {
       requiredInput: "10-digit US national number",
       inputValue: phone.nationalNumber,
-      accessMethod: "Prefilled public directory page; manual review.",
+      accessMethod: "External prefilled directory page; automated access is partner/enterprise-only.",
+      manualSummary:
+        "YouMail does not provide a generally available reverse-lookup result API. Enterprise or partner access is required for automation.",
     },
     "File an FCC complaint": {
       requiredInput: "Complaint category, incident details, and contact information",
