@@ -1,4 +1,4 @@
-const CACHE_NAME = "number-origin-desk-v1";
+const CACHE_NAME = "number-origin-desk-v2";
 const APP_SHELL = ["/", "/app.js", "/maps.js", "/styles.css", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {

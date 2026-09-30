@@ -210,6 +210,24 @@ button:disabled { cursor: wait; opacity: 0.7; }
 .evidence-list div { padding: 18px 0; display: grid; grid-template-columns: 140px 1fr; gap: 22px; border-top: 1px solid rgba(23, 33, 27, 0.18); }
 .evidence-list dt { color: var(--accent-dark); font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; text-transform: uppercase; }
 .evidence-list dd { margin: 0; color: #344139; line-height: 1.55; }
+.manual-search-button {
+  width: 100%;
+  min-height: 42px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 4px;
+  color: white;
+  background: var(--accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+.manual-search-warning, .manual-search-status {
+  display: block;
+  margin: 6px 0 12px;
+  color: #5a675f;
+  line-height: 1.45;
+}
 .evidence-list dd a { display: block; margin-top: 8px; color: var(--accent-dark); font-weight: 700; }
 .evidence-list dd small { display: block; margin-top: 8px; color: #5a675f; line-height: 1.45; }
 #evidence-results-intro { margin: 0 0 14px; }

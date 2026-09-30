@@ -85,6 +85,7 @@ test("returns sourced numbering assignment without inferred coordinates", async 
   assert.equal(response.body.sources[0].retrievedAtUtc, "2026-07-28T12:00:00.000Z");
   const evidence = response.body.investigation.evidenceResults;
   assert.equal(evidence.length, searches.length);
+  assert.equal(evidence.filter(({ status }) => status === "manual-review").length, 7);
   assert.equal(
     evidence.find(({ title }) => title.startsWith("Local Calling Guide")).status,
     "discovered",

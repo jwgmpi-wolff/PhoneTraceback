@@ -121,6 +121,13 @@
               <dt>Source results</dt>
               <dd>
                 <p id="evidence-results-intro">Inspect a number to retrieve supported public evidence.</p>
+                <button id="open-manual-searches" class="manual-search-button" type="button" hidden>
+                  Open all exact-number searches
+                </button>
+                <small id="manual-search-warning" class="manual-search-warning" hidden>
+                  This sends the complete phone number to each listed third-party search in separate tabs.
+                </small>
+                <span id="manual-search-status" class="manual-search-status" role="status" aria-live="polite"></span>
                 <ul id="evidence-results"></ul>
               </dd>
             </div>

@@ -14,6 +14,10 @@ const routeDestination = document.querySelector("#route-destination");
 const routeProvider = document.querySelector("#route-provider");
 const routeMode = document.querySelector("#route-mode");
 const routeStatus = document.querySelector("#route-status");
+const openManualSearches = document.querySelector("#open-manual-searches");
+const manualSearchWarning = document.querySelector("#manual-search-warning");
+const manualSearchStatus = document.querySelector("#manual-search-status");
+let manualSearchUrls = [];
 
 function setLoading(loading) {
   button.disabled = loading;
@@ -62,8 +66,15 @@ function renderLiveSearches(searches) {
 function renderEvidenceResults(results) {
   const intro = document.querySelector("#evidence-results-intro");
   const list = document.querySelector("#evidence-results");
+  manualSearchUrls = results
+    .filter((result) => result.status === "manual-review")
+    .map((result) => result.source.url);
+  openManualSearches.hidden = manualSearchUrls.length === 0;
+  manualSearchWarning.hidden = manualSearchUrls.length === 0;
+  openManualSearches.textContent = `Open all ${manualSearchUrls.length} exact-number searches`;
+  manualSearchStatus.textContent = "";
   intro.textContent =
-    "Each configured source is listed below. Exact-number directories require a user-initiated review so the app does not silently disclose the complete number.";
+    "Each configured source is listed below. Use the batch action or an individual link to run exact-number searches.";
   list.replaceChildren(
     ...results.map((result) => {
       const item = document.createElement("li");
@@ -96,6 +107,23 @@ function renderEvidenceResults(results) {
     }),
   );
 }
+
+openManualSearches.addEventListener("click", () => {
+  let opened = 0;
+  for (const url of manualSearchUrls) {
+    const searchWindow = window.open("about:blank", "_blank");
+    if (searchWindow) {
+      searchWindow.opener = null;
+      searchWindow.location.href = url;
+      opened += 1;
+    }
+  }
+
+  manualSearchStatus.textContent =
+    opened === manualSearchUrls.length
+      ? `Opened ${opened} searches. Review each third-party result before drawing conclusions.`
+      : `Opened ${opened} of ${manualSearchUrls.length} searches. Allow pop-ups or use the individual links below.`;
+});
 
 function renderResult(data) {
   document.querySelector("#result-title").textContent = data.region;
