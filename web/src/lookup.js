@@ -102,12 +102,16 @@ function createEvidenceResults(searches, prefixEvidence, phone) {
     "Google possible-owner search": {
       requiredInput: "Full E.164 number as a quoted owner/business query",
       inputValue: `"${phone.number}" phone owner business`,
-      accessMethod: "Prefilled public search link; manual review.",
+      accessMethod: "External prefilled search; Google full-web API access requires a partner agreement.",
+      manualSummary:
+        "Results cannot be fetched into this deployment through a generally available official Google full-web search API. Review the prefilled search on Google.",
     },
     "Bing possible-owner search": {
       requiredInput: "Full E.164 number as a quoted owner/business query",
       inputValue: `"${phone.number}" phone owner business`,
-      accessMethod: "Prefilled public search link; manual review.",
+      accessMethod: "External prefilled search; the legacy Bing Search API is retired.",
+      manualSummary:
+        "Results cannot be fetched through the retired Bing Search API. Embedded Bing-grounded answers require a separately provisioned Azure AI Foundry integration.",
     },
     "Should I Answer? community reports": {
       requiredInput: "Full digits-only international number",
@@ -189,6 +193,7 @@ function createEvidenceResults(searches, prefixEvidence, phone) {
         source: { title: search.title, url: search.url },
         fields: null,
         summary:
+          form.manualSummary ??
           "Not fetched automatically because doing so would transmit the complete phone number to a third party. Open the source to run this exact-number search.",
         limitation: search.summary,
       };

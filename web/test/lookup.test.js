@@ -115,6 +115,14 @@ test("returns sourced numbering assignment without inferred coordinates", async 
     "\"+12025550123\" phone owner business",
   );
   assert.match(
+    evidence.find(({ title }) => title === "Google possible-owner search").accessMethod,
+    /partner agreement/,
+  );
+  assert.match(
+    evidence.find(({ title }) => title === "Bing possible-owner search").summary,
+    /Azure AI Foundry/,
+  );
+  assert.match(
     evidence.find(({ title }) => title === "Tellows community reports").accessMethod,
     /licensed Tellows API/,
   );
