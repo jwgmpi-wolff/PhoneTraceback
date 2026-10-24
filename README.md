@@ -2,6 +2,18 @@
 
 Number Origin Desk is a privacy-preserving Android and web application for validating a phone number and showing general numbering-assignment metadata. It does not locate a caller, device, subscriber, or network route.
 
+<!-- project-downloads:start -->
+## APK and installer downloads
+
+| Package | Download | Source |
+| --- | --- | --- |
+| Android APK | [NumberOriginDesk.apk](https://github.com/jwgmpi-wolff/PhoneTraceback/releases/download/v1.0.0/NumberOriginDesk.apk) | v1.0.0 |
+
+Android may require approval to install apps from this download source. Debug APKs are labeled above. Windows executables that are not setup packages may require accompanying project files; follow the project-specific instructions below.
+
+- [Download the complete source ZIP](https://github.com/jwgmpi-wolff/PhoneTraceback/archive/refs/heads/main.zip).
+<!-- project-downloads:end -->
+
 ## Safety boundary
 
 The application intentionally does not perform real-time tracking, subscriber deanonymization, carrier traceback, SS7/SIGTRAN tracing, or covert location discovery. Phone numbers can be spoofed, reassigned, ported, or used outside their assigned region. Every successful result includes this warning:
@@ -176,3 +188,9 @@ azd down --purge --force
 - Add a custom domain and App Service managed certificate if a branded URL is required.
 - Keep application and platform dependencies patched.
 - Do not market or display results as caller location, ownership, identity, or traceback evidence.
+
+## Copyright
+
+Copyright (c) 2026 Jerry Wolff. See [COPYRIGHT](COPYRIGHT) for the scope of this
+notice. Existing licenses and third-party attribution remain unchanged; this
+notice does not grant additional permissions.
